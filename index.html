@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KeyDeck — Multi-Paper-to-Slide Generation</title>
+  <meta name="description" content="KeyDeck: multi-paper-to-slide generation via cross-paper synthesis and reference-guided personalization, with KeyBench, a benchmark of 100 expert-authored multi-paper presentations." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/academicons/1.9.4/css/academicons.min.css" />
+  <link rel="icon" type="image/png" href="assets/keydeck_icon.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #040906;
+      --bg-2:     #07100b;
+      --surface:  #0b1710;
+      --border:   rgba(150,255,190,.09);
+      --border-2: rgba(150,255,190,.17);
+      --ink:      #e9fbf0;
+      --ink-2:    #a3d6b8;
+      --ink-3:    #70a486;
+      --accent:   #2eae68;
+      --accent-2: #5ed08a;
+      --radius:   14px;
+      --shadow:   0 4px 24px rgba(0,0,0,.5);
+      --nav-bg:   rgba(4,9,6,.9);
+      --hero-grad-1: rgba(46,174,104,.10);
+      --hero-grad-2: rgba(94,208,138,.05);
+      --hero-title: #ffffff;
+      --carousel-bg:#050d08;
+      --overlay-bg: rgba(6,24,12,.72);
+      --modal-bg: rgba(3,12,6,.94);
+      --figure-bg: #ffffff;
+    }
+
+    body.light-mode {
+      --bg:       #f5fdf8;
+      --bg-2:     #e7f7ed;
+      --surface:  #ffffff;
+      --border:   rgba(16,90,50,.10);
+      --border-2: rgba(16,90,50,.18);
+      --ink:      #0d2a18;
+      --ink-2:    #345b44;
+      --ink-3:    #4a7a5e;
+      --accent:   #16864a;
+      --accent-2: #0f6b3a;
+      --shadow:   0 10px 30px rgba(16,90,50,.10);
+      --nav-bg:   rgba(245,253,248,.9);
+      --hero-grad-1: rgba(22,134,74,.09);
+      --hero-grad-2: rgba(46,174,104,.06);
+      --hero-title: #0d2a18;
+      --carousel-bg:#e2f3e8;
+      --overlay-bg: rgba(255,255,255,.82);
+      --modal-bg: rgba(231,247,237,.94);
+      --figure-bg: #ffffff;
+    }
+
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      transition: background-color .25s ease, color .25s ease;
+    }
+    a { color: var(--accent-2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .theme-toggle {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border-2);
+      background: rgba(255,255,255,.04);
+      color: var(--ink-2);
+      font-size: .78rem;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all .2s ease;
+    }
+    .theme-toggle:hover {
+      color: var(--ink);
+      text-decoration: none;
+      background: rgba(46,174,104,.12);
+      border-color: rgba(46,174,104,.32);
+    }
+    body.light-mode .theme-toggle { background: rgba(16,90,50,.04); }
+
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--nav-bg);
+      backdrop-filter: blur(20px) saturate(1.4);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; align-items: center;
+      padding: 0 24px; gap: 8px;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .nav-inner::-webkit-scrollbar { display: none; }
+    .nav-logo {
+      height: 30px; margin-right: 12px; flex-shrink: 0;
+      display: block;
+    }
+    .nav-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 14px 12px;
+      font-size: .78rem; font-weight: 600;
+      color: var(--ink-3);
+      white-space: nowrap; text-decoration: none;
+      transition: color .2s;
+      flex-shrink: 0;
+    }
+    .nav-link:hover { color: var(--ink); text-decoration: none; }
+
+    .hero {
+      position: relative;
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 48px 48px 64px;
+      background:
+        radial-gradient(ellipse at 25% 20%, var(--hero-grad-1) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 70%, var(--hero-grad-2) 0%, transparent 55%),
+        var(--bg);
+    }
+    .hero-inner { max-width: 1200px; width: 100%; }
+    .hero-top {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 40px; margin-bottom: 32px;
+    }
+    .hero-logo { height: 96px; flex-shrink: 0; }
+    .venue-badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 6px 13px; border-radius: 999px; margin-bottom: 16px;
+      font-size: .72rem; font-weight: 800; letter-spacing: .04em;
+      text-transform: uppercase;
+      background: rgba(46,174,104,.14);
+      border: 1px solid rgba(46,174,104,.4);
+      color: var(--accent-2);
+    }
+    body.light-mode .venue-badge { color: var(--accent); }
+    .hero h1 {
+      font-size: clamp(2rem, 3.6vw, 3.1rem);
+      font-weight: 900; letter-spacing: -.035em; line-height: 1.1;
+      color: var(--hero-title);
+    }
+    .hero h1 .hl {
+      background: linear-gradient(135deg, #5ed08a, #9be8b8, #2eae68);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    body.light-mode .hero h1 .hl { background-image: linear-gradient(135deg, #16864a, #2eae68, #0f6b3a); }
+    .hero-meta { margin-top: 16px; }
+    .hero-authors { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 10px; }
+    .hero-authors .author { font-size: .84rem; font-weight: 600; color: var(--ink); }
+    .hero-authors .author sup { color: var(--accent-2); font-size: .62rem; margin-left: 1px; }
+    body.light-mode .hero-authors .author sup { color: var(--accent); }
+    .hero-affil { font-size: .78rem; color: var(--ink-3); line-height: 1.7; margin-bottom: 4px; }
+    .hero-affil sup { color: var(--accent-2); }
+    body.light-mode .hero-affil sup { color: var(--accent); }
+    .hero-notes { font-size: .72rem; color: var(--ink-3); opacity: .85; }
+
+    .hero-links { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .hero-link {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 9px 18px; border-radius: 10px;
+      min-width: 120px;
+      font-size: .82rem; font-weight: 700;
+      border: 1.5px solid var(--border-2);
+      color: var(--ink-2); background: rgba(255,255,255,.04);
+      backdrop-filter: blur(8px);
+      transition: all .2s; text-decoration: none;
+    }
+    body.light-mode .hero-link { background: rgba(255,255,255,.7); }
+    .hero-link:hover {
+      background: rgba(46,174,104,.16); border-color: rgba(46,174,104,.45);
+      color: var(--ink); transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(46,174,104,.22);
+      text-decoration: none;
+    }
+    .hero-link i { width: 16px; text-align: center; }
+    .hero-link.soon { cursor: default; opacity: .78; }
+    .hero-link.soon:hover {
+      transform: none; box-shadow: none;
+      background: rgba(255,255,255,.04); border-color: var(--border-2); color: var(--ink-2);
+    }
+    body.light-mode .hero-link.soon:hover { background: rgba(255,255,255,.7); }
+    .soon-tag {
+      font-style: normal; font-size: .6rem; font-weight: 800;
+      letter-spacing: .06em; text-transform: uppercase;
+      padding: 2px 6px; border-radius: 5px;
+      background: rgba(46,174,104,.2); color: var(--accent-2);
+    }
+    body.light-mode .soon-tag { color: var(--accent); background: rgba(22,134,74,.12); }
+
+    .hero-showcase { margin-top: 12px; }
+    .hero .tagline {
+      font-size: 1.02rem; color: var(--ink-2);
+      line-height: 1.7; margin: 4px 0 26px; max-width: none;
+    }
+
+    .figure-card {
+      background: var(--figure-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 22px 16px;
+      box-shadow: 0 16px 48px rgba(0,0,0,.28), 0 0 70px rgba(46,174,104,.06);
+    }
+    
+    body.light-mode .figure-card { box-shadow: var(--shadow); }
+    .figure-card img { width: 100%; display: block; border-radius: 6px; }
+    .figure-card.tight { padding: 18px; }
+    .figure-cap {
+      margin-top: 14px; padding-top: 12px;
+      border-top: 1px solid rgba(0,0,0,.07);
+      font-size: .8rem; color: #345b44; line-height: 1.55;
+    }
+    .figure-cap strong { color: #0d2a18; }
+
+    .section { max-width: 1296px; margin: 0 auto; padding: 72px 48px; }
+    .section-alt { background: var(--bg-2); }
+    .section-sep { height: 1px; background: linear-gradient(90deg, transparent, rgba(46,174,104,.28), transparent); }
+
+    .section-head { margin-bottom: 34px; }
+    .section-head .eyebrow {
+      display: inline-block; font-size: .7rem; font-weight: 800;
+      letter-spacing: .1em; text-transform: uppercase;
+      color: var(--accent-2); margin-bottom: 10px;
+    }
+    body.light-mode .section-head .eyebrow { color: var(--accent); }
+    .section-head h2 {
+      font-size: 1.85rem; font-weight: 800; letter-spacing: -.03em;
+      line-height: 1.15; color: var(--ink);
+    }
+    .section-head p {
+      font-size: .95rem; color: var(--ink-2); margin-top: 10px; max-width: none;
+    }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+
+    .info-card {
+      padding: 22px; border-radius: 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      transition: border-color .3s, transform .2s;
+    }
+    .info-card:hover { border-color: rgba(46,174,104,.28); transform: translateY(-2px); }
+    .info-card .tag {
+      display: inline-block; font-size: .66rem; font-weight: 800;
+      letter-spacing: .05em; text-transform: uppercase;
+      padding: 3px 9px; border-radius: 999px; margin-bottom: 11px;
+      background: rgba(46,174,104,.14); color: var(--accent-2);
+    }
+    body.light-mode .info-card .tag { color: var(--accent); background: rgba(22,134,74,.1); }
+    .info-card .tag.muted { background: rgba(255,255,255,.06); color: var(--ink-3); }
+    body.light-mode .info-card .tag.muted { background: rgba(16,90,50,.06); }
+    .info-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; color: var(--ink); }
+    .info-card p { font-size: .85rem; color: var(--ink-3); line-height: 1.6; }
+
+    .features { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin-top: 40px; }
+    .feature {
+      padding: 22px; border-radius: 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      transition: border-color .3s;
+    }
+    .feature:hover { border-color: rgba(46,174,104,.28); }
+    .feature-icon { font-size: 1.35rem; margin-bottom: 12px; color: var(--accent-2); }
+    body.light-mode .feature-icon { color: var(--accent); }
+    .feature h3 { font-size: .95rem; font-weight: 700; margin-bottom: 5px; color: var(--ink); }
+    .feature p { font-size: .82rem; color: var(--ink-3); line-height: 1.55; }
+
+    /* Stage list */
+    .stages { display: flex; flex-direction: column; gap: 14px; }
+    .stage {
+      display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: start;
+      padding: 20px 22px; border-radius: 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      transition: border-color .3s;
+    }
+    .stage:hover { border-color: rgba(46,174,104,.28); }
+    .stage.conv { border-color: rgba(46,174,104,.3); background: linear-gradient(180deg, rgba(46,174,104,.06), transparent); }
+    .stage-num {
+      display: flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px; border-radius: 11px;
+      font-weight: 800; font-size: 1.05rem; color: #fff;
+      background: rgba(255,255,255,.07); border: 1px solid var(--border-2);
+    }
+    .stage.conv .stage-num { background: var(--accent); border-color: var(--accent); box-shadow: 0 4px 16px rgba(46,174,104,.35); }
+    .stage-body h3 {
+      font-size: 1rem; font-weight: 700; color: var(--ink);
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .stage-body h3 .chip {
+      font-size: .6rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+      padding: 2px 8px; border-radius: 999px;
+      background: rgba(46,174,104,.16); color: var(--accent-2);
+    }
+    body.light-mode .stage-body h3 .chip { color: var(--accent); background: rgba(22,134,74,.1); }
+    .stage-body p { font-size: .87rem; color: var(--ink-3); line-height: 1.6; margin-top: 5px; }
+
+    /* Results / stats */
+    .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+    .stat {
+      padding: 22px 20px; border-radius: 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      transition: border-color .3s, transform .2s;
+    }
+    .stat:hover { border-color: rgba(46,174,104,.28); transform: translateY(-2px); }
+    .stat-num {
+      font-size: 2.2rem; font-weight: 900; letter-spacing: -.03em;
+      color: var(--accent-2); line-height: 1;
+    }
+    body.light-mode .stat-num { color: var(--accent); }
+    .stat-label { font-size: .8rem; color: var(--ink-2); margin-top: 10px; line-height: 1.45; font-weight: 600; }
+    .stat-sub { font-size: .72rem; color: var(--ink-3); margin-top: 4px; }
+
+    .result-table-wrap { margin-top: 22px; overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); }
+    table.result-table { width: 100%; border-collapse: collapse; font-size: .86rem; min-width: 480px; }
+    table.result-table th, table.result-table td { padding: 12px 16px; text-align: left; }
+    table.result-table tbody tr:last-child td { background: rgba(46,174,104,.07); }
+    table.result-table thead th {
+      background: var(--bg-2); color: var(--ink-2); font-weight: 700;
+      font-size: .72rem; letter-spacing: .05em; text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+    table.result-table tbody td { border-bottom: 1px solid var(--border); color: var(--ink-2); }
+    table.result-table tbody tr:last-child td { border-bottom: none; }
+    table.result-table td.num { font-variant-numeric: tabular-nums; font-weight: 600; }
+    table.result-table td.delta { color: var(--accent-2); font-weight: 800; }
+    body.light-mode table.result-table td.delta { color: var(--accent); }
+
+    .notes-list { margin-top: 24px; display: flex; flex-direction: column; gap: 12px; }
+    .note-item {
+      display: flex; gap: 12px; align-items: flex-start;
+      font-size: .88rem; color: var(--ink-2); line-height: 1.6;
+    }
+    .note-item i { color: var(--accent-2); margin-top: 3px; flex-shrink: 0; }
+    body.light-mode .note-item i { color: var(--accent); }
+
+    .cite-pre {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+      font-family: 'SF Mono',Menlo,Consolas,monospace;
+      font-size: .78rem; line-height: 1.7; color: var(--ink-2);
+      overflow-x: auto; white-space: pre; margin: 0;
+      position: relative;
+    }
+    .copy-btn {
+      position: absolute; top: 10px; right: 10px;
+      padding: 5px 11px; border-radius: 7px;
+      background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.08);
+      color: var(--ink-3); font-size: .7rem; font-weight: 600;
+      cursor: pointer; transition: all .2s;
+      display: flex; align-items: center; gap: 4px;
+    }
+    body.light-mode .copy-btn { background: rgba(16,90,50,.05); border-color: rgba(16,90,50,.08); }
+    .copy-btn:hover { background: rgba(46,174,104,.32); color: #fff; }
+
+    footer {
+      background: var(--bg); border-top: 1px solid var(--border);
+      color: var(--ink-3); text-align: center;
+      padding: 44px 24px; font-size: .8rem;
+    }
+    footer .foot-badge {
+      display: inline-block; margin-bottom: 12px;
+      font-size: .7rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+      padding: 5px 12px; border-radius: 999px;
+      background: rgba(46,174,104,.12); color: var(--accent-2); border: 1px solid rgba(46,174,104,.3);
+    }
+    body.light-mode footer .foot-badge { color: var(--accent); }
+
+    .reveal {
+      opacity: 0; transform: translateY(24px);
+      transition: opacity .6s cubic-bezier(.16,1,.3,1), transform .6s cubic-bezier(.16,1,.3,1);
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* Deck carousel */
+    .slide-carousel {
+      position: relative; border-radius: 12px; overflow: hidden;
+      border: 1px solid var(--border-2); background: var(--carousel-bg); user-select: none;
+    }
+    .slide-carousel .slide-img-wrap { position: relative; aspect-ratio: 16/9; background: #fff; }
+    .slide-carousel .slide-img-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; cursor: zoom-in; }
+    .slide-progress { position: absolute; bottom: 0; left: 0; height: 3px; background: var(--accent); transition: width .2s; }
+    .slide-nav {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 8px 10px; border-top: 1px solid var(--border);
+    }
+    .slide-nav button {
+      width: 34px; height: 30px; border-radius: 7px;
+      background: rgba(255,255,255,.06); border: 1px solid var(--border-2);
+      color: var(--ink-2); cursor: pointer; font-size: .9rem; transition: all .15s;
+    }
+    body.light-mode .slide-nav button { background: rgba(16,90,50,.05); }
+    .slide-nav button:hover:not(:disabled) { background: rgba(46,174,104,.45); color: #fff; }
+    .slide-nav button:disabled { opacity: .3; cursor: default; }
+    .slide-counter { font-size: .76rem; font-weight: 700; color: var(--ink-3); min-width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
+    .slide-counter b { color: var(--ink); }
+    .deck-cap { margin-top: 12px; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+    .deck-cap .tag {
+      font-size: .66rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+      padding: 3px 9px; border-radius: 999px; margin-bottom: 4px;
+      background: rgba(46,174,104,.14); color: var(--accent-2);
+    }
+    body.light-mode .deck-cap .tag { color: var(--accent); }
+    .deck-cap strong { font-size: .95rem; color: var(--ink); line-height: 1.35; }
+    .deck-cap span:last-child { font-size: .8rem; color: var(--ink-3); }
+
+    /* Figure lightbox */
+    img.zoomable { cursor: zoom-in; }
+    .lightbox {
+      display: none; position: fixed; inset: 0; z-index: 1000;
+      background: var(--modal-bg); backdrop-filter: blur(20px);
+      overflow: auto; padding: 56px 24px 24px; text-align: center;
+    }
+    .lightbox.open { display: block; }
+    .lightbox img {
+      max-width: min(1800px, 100%); background: #fff;
+      border-radius: 10px; border: 1px solid var(--border-2); cursor: zoom-out;
+    }
+
+    @media (max-width: 1000px) {
+      .features, .stat-grid, .grid-4 { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 900px) {
+      .grid-3 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 700px) {
+      .hero-top { flex-direction: column-reverse; align-items: center; text-align: center; }
+      .hero-logo { height: 56px; }
+      .hero-authors, .hero-links { justify-content: center; }
+      .hero .tagline { margin-left: auto; margin-right: auto; }
+      .hero-affil, .venue-badge { text-align: center; }
+      .grid-2, .grid-3, .grid-4, .features, .stat-grid { grid-template-columns: 1fr; }
+      .section { padding: 48px 20px; }
+      .hero { padding: 40px 20px 50px; }
+      .stage { grid-template-columns: 1fr; }
+      .theme-toggle { margin-left: 8px; padding: 8px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#top" style="display:flex;align-items:center;flex-shrink:0;"><img src="assets/keydeck_icon.png" alt="KeyDeck" class="nav-logo" /></a>
+    <a class="nav-link" href="#approach">Comparison to Prior Work</a>
+    <a class="nav-link" href="#pipeline">How it Works</a>
+    <a class="nav-link" href="#analysis">Paper Analysis</a>
+    <a class="nav-link" href="#personalization">Personalization</a>
+    <a class="nav-link" href="#keybench">KeyBench</a>
+    <a class="nav-link" href="#results">Results</a>
+    <a class="nav-link" href="#examples">Examples</a>
+    <a class="nav-link" href="#citation">Citation</a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle color theme">
+      <i class="fa-solid fa-sun"></i>
+      <span id="themeToggleText">Light mode</span>
+    </button>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="hero-inner">
+    <div class="hero-top">
+      <div>
+        <span class="venue-badge">Preprint &middot; 2026</span>
+        <h1><span class="hl">KeyDeck</span>: Multi-Paper-to-Slide Generation via Cross-Paper Synthesis and Reference-Guided Personalization</h1>
+        <div class="hero-meta">
+          <div class="hero-authors">
+            <span class="author">Tarik Can Ozden</span>
+            <span class="author">Sachidanand VS</span>
+            <span class="author">Ram Prakash Reddy Motati</span>
+            <span class="author">Ozgur Kara</span>
+            <span class="author">Dilek Hakkani-Tür</span>
+            <span class="author">Junho Kim</span>
+            <span class="author">James M. Rehg</span>
+          </div>
+          <div class="hero-affil">University of Illinois Urbana-Champaign</div>
+        </div>
+        <div class="hero-links">
+          <span class="hero-link soon"><i class="ai ai-arxiv" style="font-size:1.1rem;"></i> arXiv <em class="soon-tag">Soon</em></span>
+          <span class="hero-link soon"><i class="fa-brands fa-github" style="font-size:1rem;"></i> Code <em class="soon-tag">Soon</em></span>
+          <a class="hero-link" href="#approach"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg> Explore</a>
+        </div>
+      </div>
+      <img src="assets/keydeck_logo.png" alt="KeyDeck" class="hero-logo" />
+    </div>
+
+    <div class="hero-showcase">
+      <p class="tagline">KeyDeck turns a <strong style="color:var(--ink);">collection of research papers</strong> into one coherent, editable presentation. A <strong style="color:var(--ink);">per-paper analysis</strong> first characterizes each paper on its own, and a <strong style="color:var(--ink);">cross-paper (contextual) analysis</strong> then relates the papers to each other and builds a single narrative across them. The deck is personalized from <strong style="color:var(--ink);">reference presentations</strong>: one for how the story is told, another for how the slides look and read.</p>
+      <div class="figure-card reveal">
+        <img class="zoomable" src="assets/teaser.png" alt="Overview of KeyDeck: multiple papers, a narrative reference (papers plus slide deck), and a visual reference slide deck are combined into a personalized KeyDeck slide deck." />
+        <div class="figure-cap"><strong>Overview of KeyDeck.</strong> Given multiple source papers, KeyDeck generates a coherent slide deck personalized by narrative references (papers and their corresponding slide decks) and a separate visual reference slide deck. The narrative references guide content organization and presentation structure, while the visual reference guides the generated deck's visual and textual style.</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="section-sep"></div>
+
+<!-- APPROACH / PARADIGM -->
+<section id="approach">
+<div class="section">
+  <div class="reveal">
+    <div class="section-head">
+      <span class="eyebrow">The idea</span>
+      <h2>From one paper to many, from instructions to references</h2>
+      <p>Tutorials, keynotes, and survey talks draw on many papers at once, and the same papers can support very different talks depending on who presents them. Prior systems plan around a single source paper, treat extra papers as supplementary material, and personalize mostly from explicit instructions. KeyDeck plans jointly across all papers from the outset and infers the presenter's preferences from presentations they already have.</p>
+    </div>
+  </div>
+
+  <div class="reveal figure-card" style="transition-delay:.06s;">
+    <img class="zoomable" src="assets/comparison.png" alt="Comparison of paper-to-slide generation paradigms: (a) single-paper, (b) single-paper with supplementary content, (c) single-paper with narrative-style personalization, (d) KeyDeck." />
+    <div class="figure-cap"><strong>Comparison of paper-to-slide generation paradigms.</strong> Previous work focuses on (a) single-paper-to-slide generation (single-PTSG), (b) single-PTSG with supplementary content from additional papers, and (c) single-PTSG with narrative-style personalization, while (d) KeyDeck jointly synthesizes multiple papers with narrative, content, visual, and textual personalization.</div>
+  </div>
+
+  <div class="grid-3 reveal" style="margin-top:24px;transition-delay:.1s;">
+    <div class="info-card">
+      <span class="tag">Multi-PTSG</span>
+      <h3>Cross-paper synthesis</h3>
+      <p>Per-paper analysis followed by joint cross-paper analysis finds a through-line, a presentation order, and a relation map, so the deck tells one story instead of concatenating summaries.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Personalization</span>
+      <h3>Reference-guided, four dimensions</h3>
+      <p>Narrative and content preferences come from a reference paper(s)&ndash;deck pair; visual and textual preferences come from a separate reference deck. The two can be mixed freely.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Benchmark</span>
+      <h3>KeyBench</h3>
+      <p>100 expert-authored multi-paper presentations paired with their source papers, with protocols for generation quality, personalization adherence, and conversational goal satisfaction.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="section-sep"></div>
+
+<!-- PIPELINE -->
+<section id="pipeline">
+<div class="section-alt">
+<div class="section">
+  <div class="reveal">
+    <div class="section-head">
+      <span class="eyebrow">How it works</span>
+      <h2>Three stages, from PDFs to an editable deck</h2>
+      <p>KeyDeck takes one or more source PDFs, an optional natural-language request, and optional personalization references. Users can give free-text feedback on both the outline and the rendered slides; the final output is an editable PowerPoint presentation.</p>
+    </div>
+  </div>
+
+  <div class="reveal figure-card" style="transition-delay:.04s;margin-bottom:24px;">
+    <img class="zoomable" src="assets/methodology.png" alt="The KeyDeck pipeline: preprocessing, outline generation, and slide generation." />
+    <div class="figure-cap"><strong>The KeyDeck framework.</strong> (1) Preprocessing converts papers to Markdown, derives a presentation brief, and extracts per-paper analyses, metadata, and visual assets. (2) Outline generation integrates the per-paper analyses through cross-paper contextual analysis, guided by narrative and content personalization. (3) Slide generation matches figures and tables to slides and builds the deck with visual and textual personalization, followed by aesthetic refinement.</div>
+  </div>
+
+  <div class="stages reveal" style="transition-delay:.06s;">
+    <div class="stage">
+      <div class="stage-num">1</div>
+      <div class="stage-body">
+        <h3>Preprocessing</h3>
+        <p>A Docling Converter turns each PDF into structured Markdown. A Brief Writer derives a presentation brief (purpose, audience, goal, tone, technical depth) from the request. A Paper Analyst independently profiles each paper in eight fields: problem, prior work, contributions, method, evidence, visuals, limitations, and summary. An Asset Curator builds a shared registry of figures and tables that later agents can draw from any paper.</p>
+      </div>
+    </div>
+    <div class="stage conv">
+      <div class="stage-num">2</div>
+      <div class="stage-body">
+        <h3>Outline Generation <span class="chip">Cross-paper synthesis</span></h3>
+        <p>A Cross-paper Analyst reads all per-paper analyses together and decides the organizing principle, presentation order, a central through-line, and a relation map over the papers (<em>extends</em>, <em>contrasts</em>, <em>complements</em>, <em>depends-on</em>, <em>shares-baseline</em>), then assigns each paper a role and emphasis. A Commitment Builder and an Outline Writer turn this into a slide-by-slide outline, which an Outline Reviser can edit from user feedback.</p>
+      </div>
+    </div>
+    <div class="stage conv">
+      <div class="stage-num">3</div>
+      <div class="stage-body">
+        <h3>Slide Generation <span class="chip">Style personalization</span></h3>
+        <p>A Figure Matcher assigns figures and tables across the deck, letting synthesis slides draw evidence from several papers. A Content Planner writes source-grounded slide text with citations, a Deck Builder renders an HTML deck, and a Deck Refiner fixes overflow, contrast, whitespace, and figure sizing from rendered-slide measurements. A Slide Reviser applies user feedback, and the deck is exported to editable PPTX.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2 reveal" style="margin-top:18px;transition-delay:.1s;">
+    <div class="info-card">
+      <span class="tag">Conversational</span>
+      <h3>Feedback on outline and slides</h3>
+      <p>Both revisers follow the ReSpAct mechanism: they reason about a request, ask a clarifying question when it is ambiguous, and act through targeted editing tools, without regenerating unaffected slides. On request they can also retrieve background from the web or arXiv.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Output</span>
+      <h3>Editable PowerPoint</h3>
+      <p>Decks are built in HTML for layout flexibility and exported with dom-to-pptx, so the result stays fully editable.</p>
+    </div>
+  </div>
+</div>
+</div>
+</section>
+
+<div class="section-sep"></div>
+
+<!-- ANALYSIS -->
+<section id="analysis">
+<div class="section">
+  <div class="reveal">
+    <div class="section-head">
+      <span class="eyebrow">Cross-paper synthesis</span>
+      <h2>Per-paper and contextual analysis</h2>
+      <p>A multi-paper talk has to communicate how its sources connect, not summarize them one after another. KeyDeck gets there in two levels: it first understands each paper independently, then reasons over all of them jointly to decide what story the collection tells and what part each paper plays in it.</p>
+    </div>
+  </div>
+
+  <div class="grid-2 reveal" style="transition-delay:.06s;align-items:start;">
+    <div class="figure-card tight">
+      <img class="zoomable" src="assets/contextual_analysis.png" alt="Two-level contextual analysis: per-paper analysis followed by cross-paper analysis." />
+      <div class="figure-cap"><strong>Two-level contextual analysis.</strong> (1) The Paper Analyst independently analyzes each source paper into eight fields. (2) The Cross-paper Analyst integrates these analyses with the presentation brief and optional narrative and content profiles to determine the narrative structure, cross-paper relationships, paper roles, content selection, and relative emphasis.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:18px;">
+      <div class="info-card">
+        <span class="tag">Level 1 &middot; Per-paper analysis</span>
+        <h3>Each paper on its own terms</h3>
+        <p>A Paper Analyst profiles every paper in eight fields: problem, prior work, contributions, method, evidence, visuals, limitations, and a summary of its principal contributions and supporting results. It runs without the user request or the presentation brief, so each paper is characterized before its relevance to the talk is decided.</p>
+      </div>
+      <div class="info-card">
+        <span class="tag">Level 2 &middot; Contextual analysis</span>
+        <h3>The collection as one story</h3>
+        <p>A Cross-paper Analyst reads the brief and all per-paper analyses together. For the collection it sets an organizing principle and presentation order, a central <em>through-line</em>, an opening that establishes the shared problem, and a <em>relation map</em> with typed links: <em>extends</em>, <em>contrasts</em>, <em>complements</em>, <em>depends-on</em>, and <em>shares-baseline</em>.</p>
+      </div>
+      <div class="info-card">
+        <span class="tag">Per paper</span>
+        <h3>Role, content, emphasis</h3>
+        <p>Each paper is assigned a role in the narrative, the contributions, evidence, and visuals to feature, and a relative emphasis. When a content profile is available, its allocation preferences guide these decisions. The result is a structured JSON analysis that drives outline planning.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="result-table-wrap reveal" style="transition-delay:.12s;max-width:760px;">
+    <table class="result-table">
+      <thead>
+        <tr><th>Variant</th><th>Story Q/A</th><th>Depth Q/A</th><th>Narrative flow</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>w/o contextual analysis</td><td class="num">73.3</td><td class="num">81.7</td><td class="num">8.40</td></tr>
+        <tr><td>w/o per-paper analysis</td><td class="num">71.7</td><td class="num">75.0</td><td class="num">8.40</td></tr>
+        <tr><td><strong style="color:var(--ink);">KeyDeck</strong></td><td class="delta">78.3</td><td class="delta">83.3</td><td class="delta">9.00</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="reveal" style="font-size:.76rem;color:var(--ink-3);margin-top:10px;">Ablation on 10 GPT-5-generated samples, evaluated by GLM. Removing either level lowers story- and depth-related question answering and narrative flow.</p>
+</div>
+</section>
+
+<div class="section-sep"></div>
+
+<!-- PERSONALIZATION -->
+<section id="personalization">
+<div class="section-alt">
+<div class="section">
+  <div class="reveal">
+    <div class="section-head">
+      <span class="eyebrow">Personalization</span>
+      <h2>Two references, four profiles</h2>
+      <p>Preferences are rarely written down, but they show in the decks a presenter has already made. KeyDeck reads them from two optional references: a <strong style="color:var(--ink);">narrative reference</strong> (papers plus the deck that presented them) and a <strong style="color:var(--ink);">visual reference</strong> (any slide deck). The organization of one talk can be combined with the look of another.</p>
+    </div>
+  </div>
+
+  <div class="reveal figure-card" style="transition-delay:.06s;max-width:860px;margin-left:auto;margin-right:auto;">
+    <img class="zoomable" src="assets/personalization_profiles.png" alt="Overview of the narrative, content, visual, and textual personalization profiles." />
+    <div class="figure-cap"><strong>Overview of the personalization profiles.</strong> The profiles capture personalization details across four dimensions: narrative, content, visual, and textual. Profile attributes are represented as categorical choices, quantitative measurements, or natural-language descriptions.</div>
+  </div>
+
+  <div class="grid-4 reveal" style="margin-top:24px;transition-delay:.1s;">
+    <div class="info-card">
+      <span class="tag">Narrative</span>
+      <h3>How the story is organized</h3>
+      <p>Organization, navigation, transitions, and opening and closing patterns, inferred by a Reference Analyst from the narrative reference.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Content</span>
+      <h3>What gets the slides</h3>
+      <p>Slide allocation, per-paper structure, and how synthesis and results are used across the deck.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Visual</span>
+      <h3>How the slides look</h3>
+      <p>Backgrounds, typography, color roles, recurring layouts, graphical treatments, and the balance between text and figures, extracted by a Style Profiler.</p>
+    </div>
+    <div class="info-card">
+      <span class="tag">Textual</span>
+      <h3>How the slides read</h3>
+      <p>Preferred forms of expression (paragraphs, bullets, or short phrases), text density, and emphasis conventions.</p>
+    </div>
+  </div>
+</div>
+</div>
+</section>
+
+<div class="section-sep"></div>
+
+<!-- KEYBENCH -->
+<section id="keybench">
+<div class="section">
+  <div class="reveal">
+    <div class="section-head">
+      <span class="eyebrow">Benchmark</span>
+      <h2>KeyBench</h2>
+      <p>KeyBench pairs 100 source-paper sets with the expert-authored presentations built from them, collected from tutorials and keynotes at CVPR, ICCV, ECCV, ICLR, NeurIPS, ICML, ACL, and EMNLP and their workshops. We also release the full collection of 397 slide decks gathered from the same venues.</p>
+    </div>
+  </div>
+
+  <div class="stat-grid reveal" style="transition-delay:.06s;">
+    <div class="stat">
+      <div class="stat-num">100</div>
+      <div class="stat-label">Multi-paper presentations with complete source-paper sets</div>
+      <div class="stat-sub">Keynotes and tutorials</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">8</div>
+      <div class="stat-label">Major vision, ML, and NLP venues</div>
+      <div class="stat-sub">Plus associated workshops</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">397</div>
+      <div class="stat-label">Slide decks in the full released collection</div>
+      <div class="stat-sub">Including 297 without complete source sets</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">12</div>
+      <div class="stat-label">Q/A probes per sample</div>
+      <div class="stat-sub">Story, Visuals, Hard, and Depth, three each</div>
+    </div>
+  </div>
+
+  <div class="reveal figure-card" style="transition-delay:.1s;margin-top:24px;max-width:980px;margin-left:auto;margin-right:auto;">
+    <img class="zoomable" src="assets/keybench_overview.png" alt="KeyBench distribution across venues, number of source papers per deck, and presentation years." />
+    <div class="figure-cap"><strong>Overview of KeyBench.</strong> Distribution of slide decks across (a) conference venues, (b) number of source papers per deck, and (c) presentation years.</div>
+  </div>
+</div>
+</section>
+
+<div class="section-sep"></div>
+
+<!-- RESULTS -->
+<section id="results">
+<div class="section-alt">
+<div class="section">
+  <div class="reveal">
+    <div class="section-head">
+      <span class="eyebrow">Evaluation</span>
+      <h2>Better decks, closer to the presenter</h2>
+      <p>We evaluate multi-paper generation on <strong style="color:var(--ink);">KeyBench</strong>, single-paper generation on <strong style="color:var(--ink);">ArcBench</strong>, personalization against SlideTailor, and conversational goal satisfaction against ConvDeck and ConvHTML, with GPT-5 and GLM5.3-Flash as both generation backbones and judges.</p>
+    </div>
+  </div>
+
+  <div class="stat-grid reveal" style="transition-delay:.06s;">
+    <div class="stat">
+      <div class="stat-num">72.0</div>
+      <div class="stat-label">Average multi-paper Q/A score on KeyBench</div>
+      <div class="stat-sub">Next best baseline: 45.7 (GPT-5 generation, GPT judge)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">&ge;97%</div>
+      <div class="stat-label">Pairwise win rate against every baseline</div>
+      <div class="stat-sub">Overall quality, GPT-5 generation</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">80.7%</div>
+      <div class="stat-label">Human preference over SlideTailor for personalization</div>
+      <div class="stat-sub">150 pairwise comparisons, 30 participants</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">84%</div>
+      <div class="stat-label">User goals satisfied through conversation</div>
+      <div class="stat-sub">ConvHTML 73%, ConvDeck 70%</div>
+    </div>
+  </div>
+
+  <div class="reveal" style="transition-delay:.1s;">
+    <div class="result-table-wrap">
+      <table class="result-table">
+        <thead>
+          <tr><th rowspan="2">Method</th><th colspan="2">Reference-based Q/A avg. (0&ndash;100)</th><th colspan="2">Rubric-based quality avg. (0&ndash;10)</th></tr>
+          <tr><th>GPT judge</th><th>GLM judge</th><th>GPT judge</th><th>GLM judge</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>SlideGen</td><td class="num">26.93</td><td class="num">28.20</td><td class="num">6.81</td><td class="num">5.42</td></tr>
+          <tr><td>ArcDeck</td><td class="num">44.05</td><td class="num">47.30</td><td class="num">7.18</td><td class="num">5.25</td></tr>
+          <tr><td>EvoPresent</td><td class="num">45.73</td><td class="num">45.73</td><td class="num">8.03</td><td class="num">4.50</td></tr>
+          <tr><td>ConvDeck</td><td class="num">45.00</td><td class="num">47.10</td><td class="num">7.12</td><td class="num">4.11</td></tr>
+          <tr><td>DeepPresenter</td><td class="num">15.67</td><td class="num">19.65</td><td class="num">5.57</td><td class="num">4.30</td></tr>
+          <tr><td><strong style="color:var(--ink);">KeyDeck</strong></td><td class="delta">71.95</td><td class="delta">73.90</td><td class="delta">9.21</td><td class="delta">7.89</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:.76rem;color:var(--ink-3);margin-top:10px;">Multi-paper generation on KeyBench with GPT-5 as the generation model. Averages are over four Q/A categories (Story, Visuals, Hard, Depth) and four rubric dimensions (narrative flow, textual quality, visual thematic consistency, visual layout). KeyDeck also has the highest averages with GLM5.3-Flash generation (Q/A 69.47 / 71.92, rubric 9.34 / 8.84); see the paper for the full tables.</p>
+  </div>
+
+  <div class="grid-2 reveal" style="margin-top:26px;transition-delay:.12s;align-items:start;">
+    <div class="figure-card tight">
+      <img class="zoomable" src="assets/pairwise_quality.png" alt="Pairwise overall-quality comparison of KeyDeck against each baseline." />
+      <div class="figure-cap"><strong>Pairwise quality comparison.</strong> Share of decks where KeyDeck wins (green), the two presentation orders disagree (gray), or the baseline wins (red). Each pair is judged twice with the order swapped.</div>
+    </div>
+    <div class="figure-card tight">
+      <img class="zoomable" src="assets/pairwise_personalization.png" alt="Pairwise personalization judgments of KeyDeck against SlideTailor." />
+      <div class="figure-cap"><strong>Pairwise personalization judgments.</strong> KeyDeck versus SlideTailor on narrative, content, visual, textual, and overall adherence to the references. A win requires agreement across both presentation orders.</div>
+    </div>
+  </div>
+
+  <div class="notes-list reveal" style="transition-delay:.14s;">
+    <div class="note-item"><i class="fa-solid fa-trophy"></i><span>Highest average Q/A and rubric scores on KeyBench <strong style="color:var(--ink);">across both generation backbones and both judges</strong>, and the highest average rubric-based quality in the single-paper setting on ArcBench.</span></div>
+    <div class="note-item"><i class="fa-solid fa-users"></i><span>In a human ranking study (30 participants, 150 rankings), KeyDeck gets the <strong style="color:var(--ink);">best average rank of 1.61</strong>, ahead of ArcDeck (2.33), EvoPresent (2.77), and DeepPresenter (3.29).</span></div>
+    <div class="note-item"><i class="fa-solid fa-sliders"></i><span>For personalization, KeyDeck wins overall in <strong style="color:var(--ink);">55.0% and 65.0%</strong> of comparisons with GPT and GLM generation, against 11.7% for SlideTailor in both settings.</span></div>
+    <div class="note-item"><i class="fa-solid fa-gauge-high"></i><span>Comparable cost: among six methods, KeyDeck ranks third in runtime and fourth in token consumption and inference cost (highest to lowest).</span></div>
+  </div>
+</div>
+</div>
+</section>
+
+<div class="section-sep"></div>
+
+<!-- EXAMPLES -->
+<section id="examples">
+<div class="section">
+  <div class="reveal">
+    <div class="section-head">
+      <span class="eyebrow">See it in action</span>
+      <h2>Generated decks</h2>
+      <p>Six complete decks generated by KeyDeck, with and without personalization references, every slide in order. Use the arrows (or &larr; / &rarr; keys) to browse, and click a slide to enlarge it.</p>
+    </div>
+  </div>
+
+  <div class="grid-2 reveal" style="transition-delay:.06s;align-items:start;row-gap:34px;">
+    <div>
+      <div class="slide-carousel" data-dir="slides/no_personalization" data-pages="56" data-label="Measuring Progress in NLP"></div>
+      <div class="deck-cap"><span class="tag">No personalization</span><strong>Measuring Progress in NLP</strong><span>Keynote &middot; 6 source papers &middot; 56 slides &middot; default design style</span></div>
+    </div>
+    <div>
+      <div class="slide-carousel" data-dir="slides/visual_reference" data-pages="56" data-label="Model Extraction, Downstream Attacks, and Ownership Verification for NLP APIs"></div>
+      <div class="deck-cap"><span class="tag">Visual reference</span><strong>Model Extraction, Downstream Attacks, and Ownership Verification for NLP APIs</strong><span>Tutorial &middot; 6 source papers &middot; 56 slides &middot; styled after a visual reference deck</span></div>
+    </div>
+    <div>
+      <div class="slide-carousel" data-dir="slides/no_personalization_2" data-pages="53" data-label="Structured Local Supervision for Transferable Visual Representations"></div>
+      <div class="deck-cap"><span class="tag">No personalization</span><strong>Structured Local Supervision for Transferable Visual Representations</strong><span>Keynote &middot; 5 source papers &middot; 53 slides &middot; default design style</span></div>
+    </div>
+    <div>
+      <div class="slide-carousel" data-dir="slides/visual_reference_2" data-pages="56" data-label="Structured Control and Consistency in Diffusion-Based Visual Computing"></div>
+      <div class="deck-cap"><span class="tag">Visual reference</span><strong>Structured Control and Consistency in Diffusion-Based Visual Computing</strong><span>Keynote &middot; 6 source papers &middot; 56 slides &middot; styled after a visual reference deck</span></div>
+    </div>
+    <div>
+      <div class="slide-carousel" data-dir="slides/narrative_visual_reference" data-pages="23" data-label="Compositional Action Recognition: Interaction Dynamics and Semantic Knowledge"></div>
+      <div class="deck-cap"><span class="tag">Narrative + visual reference</span><strong>Compositional Action Recognition: Interaction Dynamics and Semantic Knowledge</strong><span>Keynote &middot; 3 source papers &middot; 23 slides &middot; organized after a narrative reference, styled after a visual reference deck</span></div>
+    </div>
+    <div>
+      <div class="slide-carousel" data-dir="slides/visual_reference_3" data-pages="56" data-label="Few-Shot Learning: Learned Comparisons and Rapid Adaptation"></div>
+      <div class="deck-cap"><span class="tag">Visual reference</span><strong>Few-Shot Learning: Learned Comparisons and Rapid Adaptation</strong><span>Tutorial &middot; 6 source papers &middot; 56 slides &middot; styled after a visual reference deck</span></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="section-sep"></div>
+
+<!-- CITATION -->
+<section id="citation">
+<div class="section">
+  <div class="reveal">
+    <div class="section-head">
+      <span class="eyebrow">Cite</span>
+      <h2>Citation</h2>
+      <p>If you find KeyDeck or KeyBench useful, please cite our paper.</p>
+    </div>
+    <div style="position:relative;">
+      <pre class="cite-pre" id="bibtexCode">@article{ozden2026keydeck,
+  title     = {KeyDeck: Multi-Paper-to-Slide Generation via Cross-Paper
+               Synthesis and Reference-Guided Personalization},
+  author    = {Ozden, Tarik Can and VS, Sachidanand and
+               Motati, Ram Prakash Reddy and Kara, Ozgur and
+               Hakkani-T{\"u}r, Dilek and Kim, Junho and Rehg, James M.},
+  journal   = {arXiv preprint},
+  year      = {2026}
+}</pre>
+      <button class="copy-btn" id="copyBibtexBtn" onclick="copyBibtex()"><i class="fa-regular fa-copy"></i> Copy</button>
+    </div>
+  </div>
+</div>
+</section>
+
+<footer>
+  <img src="assets/keydeck_logo.png" alt="KeyDeck" style="height:44px;margin-bottom:14px;" />
+  <p style="margin-bottom:6px;"><strong style="color:var(--ink-2);">KeyDeck</strong> — Multi-Paper-to-Slide Generation via Cross-Paper Synthesis and Reference-Guided Personalization</p>
+  <p>Tarik Can Ozden, Sachidanand VS, Ram Prakash Reddy Motati, Ozgur Kara, Dilek Hakkani-Tür, Junho Kim, James M. Rehg</p>
+  <p style="margin-top:3px;font-size:.74rem;opacity:.7;">University of Illinois Urbana-Champaign</p>
+</footer>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Enlarged figure">
+  <button class="copy-btn" style="position:fixed;top:14px;right:14px;" onclick="closeLightbox()" title="Close">&times; Close</button>
+  <img id="lightboxImg" src="" alt="" />
+</div>
+
+<script>
+  function copyBibtex() {
+    var text = document.getElementById('bibtexCode').textContent;
+    navigator.clipboard.writeText(text).then(function() {
+      var btn = document.getElementById('copyBibtexBtn');
+      var orig = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+      btn.style.background = 'rgba(46,174,104,.4)';
+      btn.style.color = '#fff';
+      setTimeout(function() { btn.innerHTML = orig; btn.style.background = ''; btn.style.color = ''; }, 2000);
+    });
+  }
+
+  function openLightbox(img) {
+    var lb = document.getElementById('lightbox');
+    var big = document.getElementById('lightboxImg');
+    big.src = img.src; big.alt = img.alt;
+    lb.classList.add('open');
+    lb.scrollTop = 0;
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function initCarousel(el) {
+    var dir = el.getAttribute('data-dir');
+    var total = parseInt(el.getAttribute('data-pages'), 10);
+    var label = el.getAttribute('data-label') || 'Deck';
+    var page = 1;
+    function src(n) { return dir + '/' + ('00' + n).slice(-3) + '.jpg'; }
+
+    var wrap = document.createElement('div'); wrap.className = 'slide-img-wrap';
+    var img = document.createElement('img'); img.draggable = false;
+    var progress = document.createElement('div'); progress.className = 'slide-progress';
+    wrap.appendChild(img); wrap.appendChild(progress);
+    var nav = document.createElement('div'); nav.className = 'slide-nav';
+    var prev = document.createElement('button'); prev.type = 'button'; prev.innerHTML = '&#8592;'; prev.setAttribute('aria-label', 'Previous slide');
+    var counter = document.createElement('span'); counter.className = 'slide-counter';
+    var next = document.createElement('button'); next.type = 'button'; next.innerHTML = '&#8594;'; next.setAttribute('aria-label', 'Next slide');
+    nav.appendChild(prev); nav.appendChild(counter); nav.appendChild(next);
+    el.appendChild(wrap); el.appendChild(nav);
+
+    function goTo(n) {
+      if (n < 1 || n > total) return;
+      page = n;
+      img.src = src(n); img.alt = label + ', slide ' + n;
+      counter.innerHTML = '<b>' + n + '</b> / ' + total;
+      progress.style.width = (n / total * 100) + '%';
+      prev.disabled = (n === 1); next.disabled = (n === total);
+      if (n < total) { var p = new Image(); p.src = src(n + 1); }
+    }
+    prev.onclick = function() { goTo(page - 1); };
+    next.onclick = function() { goTo(page + 1); };
+    img.addEventListener('click', function() { openLightbox(img); });
+    el.tabIndex = 0;
+    el.addEventListener('keydown', function(e) {
+      if (e.key === 'ArrowLeft') { goTo(page - 1); e.preventDefault(); }
+      if (e.key === 'ArrowRight') { goTo(page + 1); e.preventDefault(); }
+    });
+    goTo(1);
+  }
+
+  function applyTheme(theme) {
+    var isLight = theme === 'light';
+    document.body.classList.toggle('light-mode', isLight);
+    var text = document.getElementById('themeToggleText');
+    var icon = document.getElementById('themeToggle').querySelector('i');
+    if (isLight) { text.textContent = 'Dark mode'; icon.className = 'fa-solid fa-moon'; }
+    else { text.textContent = 'Light mode'; icon.className = 'fa-solid fa-sun'; }
+    try { localStorage.setItem('keydeck-theme', theme); } catch (e) {}
+  }
+  function initTheme() {
+    var saved = null;
+    try { saved = localStorage.getItem('keydeck-theme'); } catch (e) {}
+    applyTheme(saved || 'dark');
+    document.getElementById('themeToggle').addEventListener('click', function() {
+      applyTheme(document.body.classList.contains('light-mode') ? 'dark' : 'light');
+    });
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeLightbox();
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    initTheme();
+    document.querySelectorAll('.slide-carousel').forEach(initCarousel);
+    document.querySelectorAll('img.zoomable').forEach(function(img) {
+      img.addEventListener('click', function() { openLightbox(img); });
+    });
+    document.getElementById('lightbox').addEventListener('click', function(e) {
+      if (e.target === this || e.target.id === 'lightboxImg') closeLightbox();
+    });
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) entry.target.classList.add('visible');
+      });
+    }, { threshold: 0.05, rootMargin: '0px 0px -20px 0px' });
+    document.querySelectorAll('.reveal').forEach(function(el) { observer.observe(el); });
+  });
+</script>
+
+</body>
+</html>
